@@ -24,7 +24,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from src.db import db
+from db import db
 from bot import keyboards
 from bot import messages
 from bot import message_tracker
