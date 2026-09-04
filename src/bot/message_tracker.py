@@ -17,7 +17,7 @@ handlers/menu.py:show_favorites) — они НЕ участвуют в авто�
 
 from __future__ import annotations
 
-from src.db import db
+from db import db
 
 
 def track(db_conn, msg, is_favorite: bool = False) -> None:

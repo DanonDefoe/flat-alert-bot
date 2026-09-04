@@ -39,7 +39,7 @@ import sqlite3
 from urllib.parse import quote
 from typing import Optional
 
-from src.db import db
+from db import db
 from parsers.base import Listing
 
 

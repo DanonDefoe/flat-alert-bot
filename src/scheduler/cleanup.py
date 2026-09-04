@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 
-from src.db import db
+from db import db
 
 logger = logging.getLogger(__name__)
 

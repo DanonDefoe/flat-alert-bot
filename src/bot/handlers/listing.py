@@ -22,7 +22,7 @@ from aiogram import Bot, Router, F
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InputMediaPhoto
 
-from src.db import db
+from db import db
 from bot import keyboards
 from bot import messages
 from dedup.dedup import DedupResult

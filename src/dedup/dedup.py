@@ -23,7 +23,7 @@ import sqlite3
 from dataclasses import dataclass
 from typing import Optional
 
-from src.db import db
+from db import db
 from parsers.base import Listing
 
 AREA_TOLERANCE_SQM = 6
