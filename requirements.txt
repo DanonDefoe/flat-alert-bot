@@ -1,0 +1,10 @@
+aiogram==3.4.1
+requests==2.31.0
+beautifulsoup4==4.12.2
+APScheduler==3.10.4
+python-dotenv==1.0.0
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.12.1
+flake8==6.1.0
+mypy==1.7.1
