@@ -17,8 +17,8 @@ from urllib.parse import urlparse
 
 from fetcher import fetch_html
 from parsers.base import Listing
-from src.parsers.ss_ge import parse_ss_ge_list
-from src.parsers.myhome_ge import parse_myhome_list
+from parsers.ss_ge import parse_ss_ge_list
+from parsers.myhome_ge import parse_myhome_list
 
 
 class UnsupportedSiteError(Exception):

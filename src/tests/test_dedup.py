@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, ".")
 
 from db import db
-from src.dedup import dedup
+from dedup import dedup
 from parsers.base import Listing
 
 

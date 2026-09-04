@@ -28,7 +28,7 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from bot import messages
-from src.bot.handlers import link_common
+from bot.handlers import link_common
 
 from bot import keyboards
 from fetcher import FetchError
