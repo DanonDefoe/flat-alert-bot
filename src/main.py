@@ -18,7 +18,7 @@ errors.py — это его собственное требование к по�
 лежат рядом друг с другом, плоско — так же, как в /mnt/user-data/outputs при
 разработке. Когда переносишь в структуру PyCharm-проекта из
 PROJECT_STRUCTURE.md (src/bot/handlers/start.py и т.д.) — импорты ниже нужно
-поправить на путь до пакета (например, from src.bot.handlers import start),
+поправить на путь до пакета (например, from bot.handlers import start),
 иначе будет ModuleNotFoundError. Сам код handlers при этом не меняется.
 
 ВАЖНО про MemoryStorage: FSM-состояния (на каком шаге онбординга находится

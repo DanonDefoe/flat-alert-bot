@@ -17,7 +17,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from db import db
-from src.bot.handlers import link_common
+from bot.handlers import link_common
 from utils import time_utils
 from bot import keyboards
 from bot import message_tracker

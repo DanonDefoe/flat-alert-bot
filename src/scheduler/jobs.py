@@ -27,12 +27,12 @@ from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from scheduler import cleanup
 from db import db
-from src.dedup import dedup
+from dedup import dedup
 from utils import time_utils
 from fetcher import fetch_html, FetchError
-from src.parsers.ss_ge import parse_ss_ge_list
-from src.parsers.myhome_ge import parse_myhome_list
-from src.bot.handlers import listing
+from parsers.ss_ge import parse_ss_ge_list
+from parsers.myhome_ge import parse_myhome_list
+from bot.handlers import listing
 
 logger = logging.getLogger(__name__)
 
