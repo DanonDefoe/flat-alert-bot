@@ -26,7 +26,7 @@ from datetime import datetime, time, timedelta
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from scheduler import cleanup
-from src.db import db
+from db import db
 from src.dedup import dedup
 from utils import time_utils
 from fetcher import fetch_html, FetchError

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 
-from src.db import db
+from db import db
 
 from aiogram import Router, F
 from aiogram.filters import CommandStart

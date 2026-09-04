@@ -16,7 +16,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
-from src.db import db
+from db import db
 from src.bot.handlers import link_common
 from utils import time_utils
 from bot import keyboards

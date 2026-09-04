@@ -20,7 +20,7 @@ import json
 import sys
 from pathlib import Path
 
-from src.db import db
+from db import db
 
 
 def load_streets(conn, json_path: Path) -> tuple[int, int]:
