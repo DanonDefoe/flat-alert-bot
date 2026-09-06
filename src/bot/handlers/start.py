@@ -29,6 +29,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from bot import messages
 from bot.handlers import link_common
+from bot.handlers import menu_view
 
 from bot import keyboards
 from fetcher import FetchError
@@ -67,7 +68,7 @@ async def onboarding_ready(callback: CallbackQuery, state: FSMContext, db_conn) 
 
 
 @router.callback_query(F.data == "onb:cancel")
-async def onboarding_cancel(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+async def onboarding_cancel(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
     # Этот колбэк теперь достижим из двух разных сценариев: настоящий первый
     # онбординг (кнопка "Отмена" после ошибки валидации ссылки) и добавление
     # второго/третьего сайта через menu:add_site (handlers/menu.py) — в обоих
@@ -77,14 +78,7 @@ async def onboarding_cancel(callback: CallbackQuery, state: FSMContext, db_conn)
     await state.clear()
     sent1 = await callback.message.answer(messages.ONBOARDING_CANCELLED_TEXT)
     message_tracker.track(db_conn, sent1)
-
-    user = db.get_user(db_conn, callback.from_user.id)
-    is_paused = bool(user["is_paused"]) if user else False
-    sent2 = await callback.message.answer(
-        messages.MENU_TITLE,
-        reply_markup=keyboards.main_menu_keyboard(is_paused=is_paused),
-    )
-    message_tracker.track(db_conn, sent2)
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
     await callback.answer()
 
 
@@ -207,13 +201,9 @@ async def add_more_site_yes(callback: CallbackQuery, state: FSMContext, db_conn)
 
 
 @router.callback_query(OnboardingStates.ask_add_more, F.data == "addmore:no")
-async def add_more_site_no(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+async def add_more_site_no(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
     await state.clear()
-    user = db.get_user(db_conn, callback.from_user.id)
-    is_paused = bool(user["is_paused"]) if user else False
-    sent = await callback.message.answer(
-        messages.ONBOARDING_DONE_TEXT,
-        reply_markup=keyboards.main_menu_keyboard(is_paused=is_paused),
-    )
+    sent = await callback.message.answer(messages.ONBOARDING_DONE_TEXT)
     message_tracker.track(db_conn, sent)
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
     await callback.answer()
