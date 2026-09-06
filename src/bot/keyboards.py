@@ -98,8 +98,8 @@ def main_menu_keyboard(is_paused: bool) -> InlineKeyboardMarkup:
     builder.add(InlineKeyboardButton(text="➕ Добавить сайт", callback_data="menu:add_site"))
     builder.add(InlineKeyboardButton(text="✏️ Отредактировать ссылку", callback_data="menu:edit_link"))
     builder.add(InlineKeyboardButton(text="⭐ Избранное", callback_data="menu:favorites"))
-    builder.add(InlineKeyboardButton(text="💬 Фидбек разработчику", callback_data="menu:add_note"))
     builder.add(InlineKeyboardButton(text="🕐 Изменить рабочее окно", callback_data="menu:work_hours"))
+    builder.add(InlineKeyboardButton(text="💬 Фидбек разработчику", callback_data="menu:add_note"))
     builder.adjust(1)
     return builder.as_markup()
 

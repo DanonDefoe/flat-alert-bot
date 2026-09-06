@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+from datetime import datetime, timedelta
 from typing import Optional
 
 
@@ -25,10 +26,30 @@ def get_connection(db_path: str = "bot.db") -> sqlite3.Connection:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    """Создать таблицы, если их ещё нет. Безопасно вызывать многократно."""
+    """Создать таблицы, если их ещё нет. Безопасно вызывать многократно.
+
+    Также подчищает НОВЫЕ КОЛОНКИ на уже существующих таблицах — в отличие от
+    CREATE TABLE IF NOT EXISTS (который решает только новые таблицы), уже
+    развёрнутая БД никак не получит колонку, добавленную в схему уже ПОСЛЕ
+    первого создания таблицы (см. _ensure_column ниже). Раньше эта проблема
+    закрывалась вручную (ALTER TABLE или удаление bot.db) на каждое такое
+    изменение схемы — начиная с last_menu_message_id, это делается
+    автоматически при каждом старте."""
     schema_sql = SCHEMA_PATH.read_text(encoding="utf-8")
     conn.executescript(schema_sql)
     conn.commit()
+
+    _ensure_column(conn, "users", "last_menu_message_id", "INTEGER")
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, sql_type: str) -> None:
+    """Добавить колонку, если её ещё нет в таблице. SQLite не поддерживает
+    'ALTER TABLE ... ADD COLUMN IF NOT EXISTS' напрямую — проверяем через
+    PRAGMA table_info() и добавляем только при реальном отсутствии."""
+    existing_columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in existing_columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}")
+        conn.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +83,16 @@ def set_work_hours_utc(conn: sqlite3.Connection, telegram_id: int, start_utc: st
     conn.execute(
         "UPDATE users SET work_hours_start_utc = ?, work_hours_end_utc = ? WHERE telegram_id = ?",
         (start_utc, end_utc, telegram_id),
+    )
+    conn.commit()
+
+
+def set_last_menu_message_id(conn: sqlite3.Connection, telegram_id: int, message_id: int | None) -> None:
+    """message_id последнего показанного окна меню — см. menu_view.py.
+    None допустим (например, после удаления/сбоя), если нужно сбросить."""
+    conn.execute(
+        "UPDATE users SET last_menu_message_id = ? WHERE telegram_id = ?",
+        (message_id, telegram_id),
     )
     conn.commit()
 

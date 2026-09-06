@@ -19,6 +19,7 @@ from aiogram.types import Message, CallbackQuery
 from db import db
 from bot.handlers import link_common
 from utils import time_utils
+from bot.handlers import menu_view
 from bot import keyboards
 from bot import message_tracker
 from bot import messages
@@ -35,25 +36,6 @@ router = Router(name="menu")
 _session = make_session()
 
 
-async def _show_menu(message: Message, db_conn) -> None:
-    """Общий хелпер — показать меню с актуальным состоянием паузы.
-    Переиспользуется после завершения любого из сценариев меню (редактирование
-    ссылки, заметка, рабочее окно) — везде возвращаемся к одному и тому же
-    экрану, а не изобретаем разные "конечные" сообщения."""
-    user = db.get_user(db_conn, message.chat.id)
-    is_paused = bool(user["is_paused"]) if user else False
-    sent = await message.answer(messages.MENU_TITLE, reply_markup=keyboards.main_menu_keyboard(is_paused=is_paused))
-    message_tracker.track(db_conn, sent)
-
-
-# ---------------------------------------------------------------------------
-# Добавить ещё один сайт — переиспользует ГОТОВЫЙ флоу онбординга
-# (handlers/start.py: OnboardingStates.awaiting_link -> ... -> ask_add_more).
-# Единственное отличие от первого запуска — точка входа: там это происходит
-# после "onb:ready" или "addmore:yes", здесь — по кнопке из меню. Дальше по
-# состояниям код полностью общий, включая тестовое объявление, выбор
-# интервала и петлю "добавить ещё?" — ничего не задвоено.
-# ---------------------------------------------------------------------------
 @router.callback_query(F.data == "menu:add_site")
 async def add_site_start(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
     await state.set_state(OnboardingStates.awaiting_link)
@@ -66,7 +48,7 @@ async def add_site_start(callback: CallbackQuery, state: FSMContext, db_conn) ->
 # Пауза
 # ---------------------------------------------------------------------------
 @router.callback_query(F.data == "menu:toggle_pause")
-async def toggle_pause(callback: CallbackQuery, db_conn) -> None:
+async def toggle_pause(callback: CallbackQuery, db_conn, bot: Bot) -> None:
     user = db.get_user(db_conn, callback.from_user.id)
     currently_paused = bool(user["is_paused"]) if user else False
     new_paused = not currently_paused
@@ -76,11 +58,7 @@ async def toggle_pause(callback: CallbackQuery, db_conn) -> None:
     text = messages.MENU_PAUSED if new_paused else messages.MENU_RESUMED
     sent1 = await callback.message.answer(text)
     message_tracker.track(db_conn, sent1)
-    sent2 = await callback.message.answer(
-        messages.MENU_TITLE,
-        reply_markup=keyboards.main_menu_keyboard(is_paused=new_paused),
-    )
-    message_tracker.track(db_conn, sent2)
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
     await callback.answer()
 
 
@@ -129,7 +107,7 @@ async def edit_link_subscription_chosen(callback: CallbackQuery, state: FSMConte
 
 
 @router.callback_query(F.data == "editlink:cancel")
-async def edit_link_cancel(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+async def edit_link_cancel(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
     # Безопасно вызывать независимо от текущего состояния — на шаге выбора
     # подписки FSM-состояние ещё не установлено (см. edit_link_start), а на
     # шаге ввода ссылки уже установлено EditLinkStates.awaiting_new_link.
@@ -137,12 +115,12 @@ async def edit_link_cancel(callback: CallbackQuery, state: FSMContext, db_conn) 
     await state.clear()
     sent = await callback.message.answer(messages.MENU_EDIT_LINK_CANCELLED)
     message_tracker.track(db_conn, sent)
-    await _show_menu(callback.message, db_conn)
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
     await callback.answer()
 
 
 @router.message(EditLinkStates.awaiting_new_link)
-async def edit_link_process_new_url(message: Message, state: FSMContext, db_conn) -> None:
+async def edit_link_process_new_url(message: Message, state: FSMContext, db_conn, bot: Bot) -> None:
     url = (message.text or "").strip()
 
     try:
@@ -220,7 +198,7 @@ async def edit_link_process_new_url(message: Message, state: FSMContext, db_conn
         message_tracker.track(db_conn, sent_loc)
 
     await state.clear()
-    await _show_menu(message, db_conn)
+    await menu_view.show_menu(bot, db_conn, message.from_user.id)
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +223,7 @@ async def add_note_save(message: Message, state: FSMContext, db_conn, bot: Bot) 
 
     await _notify_developer(bot, message.from_user, text)
 
-    await _show_menu(message, db_conn)
+    await menu_view.show_menu(bot, db_conn, message.from_user.id)
 
 
 async def _notify_developer(bot: Bot, from_user, text: str) -> None:
@@ -312,7 +290,7 @@ async def work_hours_process_start(message: Message, state: FSMContext, db_conn)
 
 
 @router.message(WorkHoursStates.awaiting_end_time)
-async def work_hours_process_end(message: Message, state: FSMContext, db_conn) -> None:
+async def work_hours_process_end(message: Message, state: FSMContext, db_conn, bot: Bot) -> None:
     try:
         end_time = time_utils.parse_hh_mm(message.text or "")
     except ValueError:
@@ -341,7 +319,7 @@ async def work_hours_process_end(message: Message, state: FSMContext, db_conn) -
         )
     )
     message_tracker.track(db_conn, sent)
-    await _show_menu(message, db_conn)
+    await menu_view.show_menu(bot, db_conn, message.from_user.id)
 
 
 # ---------------------------------------------------------------------------

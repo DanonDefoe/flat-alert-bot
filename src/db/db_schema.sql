@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS users (
     is_paused             INTEGER NOT NULL DEFAULT 0,   -- 0/1
     work_hours_start_utc  TEXT    NOT NULL DEFAULT '05:00',  -- "HH:MM"
     work_hours_end_utc    TEXT    NOT NULL DEFAULT '21:00',
+    last_menu_message_id  INTEGER,  -- id последнего показанного "окна меню" —
+                                     -- см. menu_view.py: при показе нового меню
+                                     -- предыдущее (если ещё живо) удаляется,
+                                     -- чтобы в чате не копились старые "Меню:"
     created_at            TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 

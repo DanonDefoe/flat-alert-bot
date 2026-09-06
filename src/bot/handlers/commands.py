@@ -23,33 +23,19 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
-
-from db import db
-from bot import keyboards
-from bot import messages
-from bot import message_tracker
+from bot.handlers import menu_view
 
 router = Router(name="commands")
 
 
-async def _open_menu(db_conn, chat_id: int, answer_fn) -> None:
-    """Общая логика для команды и колбэка — оба в итоге делают одно и то же:
-    показать меню с актуальным состоянием паузы. answer_fn — это либо
-    message.answer, либо callback.message.answer (сигнатура одинаковая)."""
-    user = db.get_user(db_conn, chat_id)
-    is_paused = bool(user["is_paused"]) if user else False
-    sent = await answer_fn(messages.MENU_TITLE, reply_markup=keyboards.main_menu_keyboard(is_paused=is_paused))
-    message_tracker.track(db_conn, sent)
-
-
 @router.message(Command("menu"))
-async def cmd_menu(message: Message, state: FSMContext, db_conn) -> None:
+async def cmd_menu(message: Message, state: FSMContext, db_conn, bot: Bot) -> None:
     await state.clear()
-    await _open_menu(db_conn, message.from_user.id, message.answer)
+    await menu_view.show_menu(bot, db_conn, message.from_user.id)
 
 
 @router.callback_query(F.data == "menu:open")
-async def callback_menu_open(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+async def callback_menu_open(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
     await state.clear()
-    await _open_menu(db_conn, callback.from_user.id, callback.message.answer)
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
     await callback.answer()
