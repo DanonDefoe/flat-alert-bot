@@ -49,25 +49,7 @@ async def send_listing(
     """Отправить одно объявление одному пользователю. Не бросает исключения
     наружу при сбое отправки конкретного объявления — логирует и возвращается,
     чтобы одно проблемное объявление (например, битые ссылки на фото) не
-    прерывало отправку остальных объявлений в батче.
-
-    Кнопки ("⭐ В избранное" + опционально "🚫 Убрать из выдачи" + "☰ Меню" +
-    "🗑 Удалить из чата") стараемся прикрепить к уже существующему сообщению,
-    а не слать отдельным:
-      - если есть координаты -> вешаем на send_location (Telegram это
-        поддерживает — в отличие от sendMediaGroup);
-      - если координат нет и фото тоже нет -> вешаем на текстовое сообщение;
-      - если координат нет, но есть фото (альбом) -> ОТДЕЛЬНОЕ сообщение
-        всё же неизбежно: sendMediaGroup в принципе не поддерживает
-        reply_markup ни на одном элементе — это ограничение Telegram Bot
-        API, не наш недосмотр.
-
-    prior_message_ids собирает id всех сообщений, отправленных ДО того,
-    что несёт кнопки (фото, и/или карта, если карта не несёт кнопки сама) —
-    нужно для кнопки "Удалить из чата": она удаляет все эти сообщения плюс
-    редактирует (не удаляет) само сообщение-носитель кнопок, т.к. оно не
-    может знать свой собственный message_id в момент создания клавиатуры
-    (см. db_schema.sql: listing_deliveries)."""
+    прерывало отправку остальных объявлений в батче."""
     listing = result.listing
     prior_message_ids: list[int] = []
 
@@ -313,8 +295,10 @@ async def delete_listing_handler(callback: CallbackQuery, db_conn, bot: Bot) -> 
 
     db.delete_listing_delivery(db_conn, delivery_id)
 
-    # Само сообщение-носитель кнопок НЕ удаляем через delete_message — вместо
-    # этого редактируем в подтверждение (см. докстринг send_listing про
-    # невозможность знать свой собственный message_id заранее).
-    await callback.message.edit_text(messages.LISTING_DELETED_TEXT, reply_markup=None)
+    try:
+        await bot.delete_message(chat_id=callback.message.chat.id, message_id=callback.message.message_id)
+    except TelegramBadRequest as e:
+        logger.debug("Не удалось удалить сообщение-носитель кнопок: %s", e)
+
+    await callback.answer(messages.LISTING_DELETED_TEXT)
     await callback.answer()

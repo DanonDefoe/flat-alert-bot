@@ -247,20 +247,25 @@ def get_street_by_title(conn: sqlite3.Connection, title: str) -> Optional[sqlite
     """Текстовый fallback-поиск улицы по названию (точное совпадение без
     учёта регистра/пробелов по краям), используется когда street_id
     отсутствует или lookup по нему не дал координат (см. map_utils.py).
-    Ищет по всем трём языковым колонкам сразу — объявление может прислать
-    название на любом из них. Требует непустых координат у найденной записи,
-    иначе смысла в находке нет (см. вызывающий код в map_utils.py)."""
+
+    ВАЖНО: сравнение регистронезависимо делается в Python, а не через SQL
+    lower(). Встроенный SQLite lower() по умолчанию работает ТОЛЬКО с ASCII —
+    для кириллицы/грузинского он не приводит регистр вообще (lower('Ц')
+    возвращает 'Ц' без изменений). Если бы сравнение шло как
+    `lower(title_rus) = ?` с Python-приведённым параметром, при разном
+    регистре с обеих сторон совпадение просто никогда бы не находилось —
+    подтверждено на реальном случае ("ул. Цкнети" в БД не находился, хотя
+    строки визуально совпадали). Таблица streets маленькая (~1800 строк),
+    сравнение в Python не является проблемой производительности."""
     normalized = title.strip().lower()
     cur = conn.execute(
-        """
-        SELECT * FROM streets
-        WHERE (lower(title_rus) = ? OR lower(title_eng) = ? OR lower(title_geo) = ?)
-          AND latitude IS NOT NULL AND longitude IS NOT NULL
-        LIMIT 1
-        """,
-        (normalized, normalized, normalized),
+        "SELECT * FROM streets WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
     )
-    return cur.fetchone()
+    for row in cur.fetchall():
+        candidates = (row["title_rus"], row["title_eng"], row["title_geo"])
+        if any(c is not None and c.strip().lower() == normalized for c in candidates):
+            return row
+    return None
 
 
 # ---------------------------------------------------------------------------
