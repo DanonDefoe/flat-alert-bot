@@ -39,8 +39,12 @@ import sqlite3
 from urllib.parse import quote
 from typing import Optional
 
+import logging
 from db import db
 from parsers.base import Listing
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_coordinates(conn: sqlite3.Connection, listing: Listing) -> Optional[tuple[float, float]]:
@@ -57,7 +61,13 @@ def get_coordinates(conn: sqlite3.Connection, listing: Listing) -> Optional[tupl
          координатами (расхождение в самом справочнике/данных источника).
     None — координат нет ни одним из трёх путей, тогда вместо нативной карты
     нужно использовать get_fallback_map_url().
-    """
+
+    Логирование: при неудаче на КАЖДОМ шаге пишем WARNING с street_id и
+    street_raw этого объявления — чтобы при жалобе "нет карты, хотя должна
+    быть" не гадать вслепую, а сразу видеть в логах, на каком именно шаге и
+    почему сорвалось (например: "found by street_id=1411, no coords" —
+    значит это дубль в самом справочнике; "not found in streets at all" —
+    значит текста реально нет ни под каким street_id с координатами)."""
     if listing.lat is not None and listing.lng is not None:
         return listing.lat, listing.lng
 
@@ -65,11 +75,28 @@ def get_coordinates(conn: sqlite3.Connection, listing: Listing) -> Optional[tupl
         street = db.get_street(conn, listing.street_id)
         if street is not None and street["latitude"] is not None and street["longitude"] is not None:
             return street["latitude"], street["longitude"]
+        elif street is not None:
+            logger.warning(
+                "map_utils: street_id=%s (%s) найден в справочнике, но БЕЗ координат "
+                "(native_id=%s, street_raw=%r) — пробую текстовый fallback",
+                listing.street_id, street["title_rus"], listing.native_id, listing.street_raw,
+            )
+        else:
+            logger.warning(
+                "map_utils: street_id=%s отсутствует в справочнике вообще "
+                "(native_id=%s, street_raw=%r) — пробую текстовый fallback",
+                listing.street_id, listing.native_id, listing.street_raw,
+            )
 
     if listing.street_raw:
         street = db.get_street_by_title(conn, listing.street_raw)
         if street is not None:
             return street["latitude"], street["longitude"]
+        logger.warning(
+            "map_utils: координаты НЕ найдены ни по street_id (%s), ни по тексту "
+            "(native_id=%s, street_raw=%r) — используется текстовый fallback на Google Maps",
+            listing.street_id, listing.native_id, listing.street_raw,
+        )
 
     return None
 

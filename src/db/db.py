@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from datetime import datetime, timedelta
 from typing import Optional
 
 
@@ -101,12 +100,12 @@ def set_last_menu_message_id(conn: sqlite3.Connection, telegram_id: int, message
 # subscriptions
 # ---------------------------------------------------------------------------
 def add_subscription(
-    conn: sqlite3.Connection,
-    user_id: int,
-    site: str,
-    filter_url: str,
-    interval_min_sec: int,
-    interval_max_sec: int,
+        conn: sqlite3.Connection,
+        user_id: int,
+        site: str,
+        filter_url: str,
+        interval_min_sec: int,
+        interval_max_sec: int,
 ) -> int:
     cur = conn.execute(
         """
@@ -157,11 +156,11 @@ def get_subscriptions_for_user(conn: sqlite3.Connection, user_id: int) -> list[s
 
 
 def subscription_exists(
-    conn: sqlite3.Connection,
-    user_id: int,
-    site: str,
-    filter_url: str,
-    exclude_subscription_id: Optional[int] = None,
+        conn: sqlite3.Connection,
+        user_id: int,
+        site: str,
+        filter_url: str,
+        exclude_subscription_id: Optional[int] = None,
 ) -> bool:
     """True, если у пользователя уже есть активная подписка на этот же
     site+filter_url. exclude_subscription_id — исключить конкретную подписку
@@ -189,8 +188,9 @@ def get_due_subscriptions(conn: sqlite3.Connection, now_iso: str) -> list[sqlite
     """Подписки, у которых next_check_at уже наступил (или ещё не выставлен)."""
     cur = conn.execute(
         """
-        SELECT s.* FROM subscriptions s
-        JOIN users u ON u.telegram_id = s.user_id
+        SELECT s.*
+        FROM subscriptions s
+                 JOIN users u ON u.telegram_id = s.user_id
         WHERE s.is_active = 1
           AND u.is_paused = 0
           AND (s.next_check_at IS NULL OR s.next_check_at <= ?)
@@ -201,10 +201,10 @@ def get_due_subscriptions(conn: sqlite3.Connection, now_iso: str) -> list[sqlite
 
 
 def mark_checked(
-    conn: sqlite3.Connection,
-    subscription_id: int,
-    checked_at_iso: str,
-    next_check_at_iso: str,
+        conn: sqlite3.Connection,
+        subscription_id: int,
+        checked_at_iso: str,
+        next_check_at_iso: str,
 ) -> None:
     conn.execute(
         "UPDATE subscriptions SET last_checked_at = ?, next_check_at = ? WHERE id = ?",
@@ -217,19 +217,19 @@ def mark_checked(
 # streets
 # ---------------------------------------------------------------------------
 def upsert_street(
-    conn: sqlite3.Connection,
-    street_id: int,
-    latitude: Optional[float],
-    longitude: Optional[float],
-    title_rus: Optional[str],
-    title_eng: Optional[str],
-    title_geo: Optional[str],
+        conn: sqlite3.Connection,
+        street_id: int,
+        latitude: Optional[float],
+        longitude: Optional[float],
+        title_rus: Optional[str],
+        title_eng: Optional[str],
+        title_geo: Optional[str],
 ) -> None:
     conn.execute(
         """
         INSERT INTO streets (street_id, latitude, longitude, title_rus, title_eng, title_geo)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(street_id) DO UPDATE SET
+        VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(street_id) DO
+        UPDATE SET
             latitude=excluded.latitude, longitude=excluded.longitude,
             title_rus=excluded.title_rus, title_eng=excluded.title_eng, title_geo=excluded.title_geo
         """,
@@ -243,10 +243,28 @@ def get_street(conn: sqlite3.Connection, street_id: int) -> Optional[sqlite3.Row
     return cur.fetchone()
 
 
+def _normalize_street_title(text: str) -> str:
+    """Приведение текста улицы к сравнимому виду: Unicode-нормализация формы
+    (NFC) + схлопывание повторяющихся/неразрывных пробелов + strip + lower.
+
+    NFC нужен, потому что один и тот же видимый символ может быть представлен
+    разными последовательностями code points (составной символ vs базовый +
+    комбинирующий диакритик) — визуально идентичные строки из разных
+    источников (сайт vs вручную набранный streets.json) иначе могут не
+    совпадать побайтово, даже после правильного регистронезависимого
+    сравнения. \\xa0 (неразрывный пробел) отдельно заменяется на обычный —
+    веб-страницы нередко вставляют его вместо пробела."""
+    import unicodedata
+    text = text.replace("\xa0", " ")
+    text = unicodedata.normalize("NFC", text)
+    text = " ".join(text.split())  # схлопнуть повторяющиеся пробелы любого вида
+    return text.strip().lower()
+
+
 def get_street_by_title(conn: sqlite3.Connection, title: str) -> Optional[sqlite3.Row]:
-    """Текстовый fallback-поиск улицы по названию (точное совпадение без
-    учёта регистра/пробелов по краям), используется когда street_id
-    отсутствует или lookup по нему не дал координат (см. map_utils.py).
+    """Текстовый fallback-поиск улицы по названию (точное совпадение после
+    нормализации — см. _normalize_street_title), используется когда
+    street_id отсутствует или lookup по нему не дал координат (см. map_utils.py).
 
     ВАЖНО: сравнение регистронезависимо делается в Python, а не через SQL
     lower(). Встроенный SQLite lower() по умолчанию работает ТОЛЬКО с ASCII —
@@ -257,13 +275,13 @@ def get_street_by_title(conn: sqlite3.Connection, title: str) -> Optional[sqlite
     подтверждено на реальном случае ("ул. Цкнети" в БД не находился, хотя
     строки визуально совпадали). Таблица streets маленькая (~1800 строк),
     сравнение в Python не является проблемой производительности."""
-    normalized = title.strip().lower()
+    normalized = _normalize_street_title(title)
     cur = conn.execute(
         "SELECT * FROM streets WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
     )
     for row in cur.fetchall():
         candidates = (row["title_rus"], row["title_eng"], row["title_geo"])
-        if any(c is not None and c.strip().lower() == normalized for c in candidates):
+        if any(c is not None and _normalize_street_title(c) == normalized for c in candidates):
             return row
     return None
 
@@ -287,7 +305,8 @@ def exclude_group(conn: sqlite3.Connection, subscription_id: int, duplicate_grou
     Идемпотентно — повторный вызов на ту же пару ничего не ломает."""
     conn.execute(
         """
-        INSERT OR IGNORE INTO excluded_groups (subscription_id, duplicate_group_id)
+        INSERT
+        OR IGNORE INTO excluded_groups (subscription_id, duplicate_group_id)
         VALUES (?, ?)
         """,
         (subscription_id, duplicate_group_id),
@@ -329,22 +348,23 @@ def get_seen_listing(conn: sqlite3.Connection, subscription_id: int, native_id: 
 # favorites — фича "Добавить в избранное"
 # ---------------------------------------------------------------------------
 def add_favorite(
-    conn: sqlite3.Connection,
-    user_id: int,
-    site: str,
-    native_id: str,
-    street_raw: Optional[str],
-    price_usd: Optional[float],
-    price_gel: Optional[float],
-    area_sqm: Optional[float],
-    url: str,
+        conn: sqlite3.Connection,
+        user_id: int,
+        site: str,
+        native_id: str,
+        street_raw: Optional[str],
+        price_usd: Optional[float],
+        price_gel: Optional[float],
+        area_sqm: Optional[float],
+        url: str,
 ) -> bool:
     """Возвращает True, если запись реально добавлена, False — если такое
     объявление у этого юзера уже было в избранном (UNIQUE (user_id, site,
     native_id) — тихо игнорируем повтор, а не падаем с ошибкой)."""
     cur = conn.execute(
         """
-        INSERT OR IGNORE INTO favorites
+        INSERT
+        OR IGNORE INTO favorites
             (user_id, site, native_id, street_raw, price_usd, price_gel, area_sqm, url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -377,7 +397,7 @@ def remove_favorite(conn: sqlite3.Connection, favorite_id: int) -> None:
 # через 3 суток (см. message_tracker.py и cleanup.py)
 # ---------------------------------------------------------------------------
 def track_sent_message(
-    conn: sqlite3.Connection, chat_id: int, message_id: int, is_favorite: bool = False
+        conn: sqlite3.Connection, chat_id: int, message_id: int, is_favorite: bool = False
 ) -> None:
     conn.execute(
         "INSERT OR IGNORE INTO sent_messages (chat_id, message_id, is_favorite) VALUES (?, ?, ?)",

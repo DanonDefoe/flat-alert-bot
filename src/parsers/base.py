@@ -1,30 +1,12 @@
-"""
-Парсеры ss.ge / myhome.ge — рабочая версия (не заглушка).
-
-Проверено на реальных сохранённых страницах списка (view-source) обоих сайтов:
-  - оба сайта отдают ПОЛНЫЙ список объявлений внутри <script id="__NEXT_DATA__">
-    прямо на странице списка — отдельный XHR/API-запрос НЕ нужен.
-  - ss.ge: поле `similarityGroup` — родной сигнал дублей сайта (не null у части
-    объявлений, подтверждено на выборке: 7 из 16). Используем как ПЕРВИЧНЫЙ
-    признак дубля вместо/вместе с эвристикой по улице+площади+этажу.
-  - myhome.ge: `lat`/`lng` есть уже в списке (100% покрытие на выборке) —
-    отдельный запрос на /_next/data/.../[slug].json для карты НЕ нужен.
-
-Требуется локально: pip install requests beautifulsoup4 --break-system-packages
-
-ВАЖНО: код ниже проверен на СОХРАНЁННЫХ HTML-фикстурах (без сети). Реальный
-requests.get() на живом сайте нужно прогнать в твоём окружении — структура
-__NEXT_DATA__ может отличаться в мелочах при живом запросе (напр. другие
-заголовки/куки/локаль), но сама механика извлечения (найти script по id,
-распарсить как JSON, пройти по известному пути ключей) должна быть той же.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
+import json
 
 import requests
+from bs4 import BeautifulSoup
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +29,7 @@ class Listing:
     lng: Optional[float] = None
     photo_urls: list[str] = field(default_factory=list)
     duplicate_group_id: Optional[str] = None  # ss.ge: similarityGroup как есть
+    posted_at: Optional[datetime] = None  # UTC, для фичи "последние N часов"
 
 
 def make_session() -> requests.Session:
@@ -59,3 +42,12 @@ def make_session() -> requests.Session:
         "Accept-Language": "ru-RU,ru;q=0.9,en;q=0.8",
     })
     return session
+
+
+def extract_next_data(html: str) -> dict:
+    """Общая логика для обоих сайтов: найти <script id="__NEXT_DATA__"> и распарсить JSON."""
+    soup = BeautifulSoup(html, "html.parser")
+    script = soup.find("script", id="__NEXT_DATA__")
+    if script is None or not script.string:
+        raise ValueError("__NEXT_DATA__ не найден на странице — верстка могла измениться")
+    return json.loads(script.string)

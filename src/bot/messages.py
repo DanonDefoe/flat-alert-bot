@@ -32,26 +32,22 @@ WELCOME_TEXT = (
     "Когда страница загрузится — скопируй полностью URL из адресной строки и пришли мне.\n\n"
 )
 
-ASK_FOR_LINK_TEXT = "Пришли ссылку с фильтрами с ss.ge или myhome.ge."
+ASK_FOR_LINK_TEXT = "Пришли ссылку-фильтр с ss.ge или myhome.ge."
 
 ASK_FOR_INTERVAL_TEXT = "Выбери интервал проверок и уведомлений:"
 
-ASK_ADD_MORE_TEXT = "Готово! Добавить ещё одну ссылку для отслеживания?"
+ASK_ADD_MORE_TEXT = "Готово! Добавить ещё один сайт для отслеживания?"
 
 ONBOARDING_DONE_TEXT = (
     "Отлично, теперь объявления будут приходить по заданному фильтру. "
     "Некоторые дубликаты квартир можно скрыть через соответствующую кнопку — "
-    "тогда следующие дублирующие объявления тоже будут скрываться (работает не для всех объявлений). "
+    "тогда следующие дублирующие объявления тоже будут скрываться (работает далеко не для всех объявлений). "
     f"Старые сообщения удаляются через {MESSAGE_TTL_DAYS} суток, поэтому не забывай добавлять в Избранное."
 )
 
-ONBOARDING_CANCELLED_TEXT = "Хорошо, отменил. Добавить в любой момент можно через меню, вызвать внизу слева."
+ONBOARDING_CANCELLED_TEXT = "Хорошо, отменил."
 
 LINK_VALID_TEXT = "✅ Ссылка рабочая. Кстати, МЕНЮ всегда можно вызвать через кнопку внизу слева."
-
-LISTING_DELETED_TEXT = "🗑 Удалено."
-
-LISTING_DELETE_ERROR_TEXT = "Не получилось удалить — попробуй ещё раз."
 
 # --- Ошибки валидации ссылки — разные тексты под разные причины (см. link_common.py) ---
 
@@ -61,10 +57,8 @@ ERROR_UNSUPPORTED_SITE = (
 )
 
 ERROR_FETCH_FAILED = (
-    "Внимание: myhome не пускает бота на сайт, пока что этот сервис недоступен, будем разбираться. "
     "Не получилось загрузить страницу по этой ссылке — сайт не ответил или "
-    "временно недоступен. Проверь, доступен ли сайт и попробуй ещё раз через минуту."
-    " Если не получается — пришли проблемную ссылку через фидбек из главного меню."
+    "временно недоступен. Попробуй ещё раз через минуту."
 )
 
 ERROR_PARSE_FAILED = (
@@ -90,15 +84,15 @@ MENU_TITLE = "Меню:"
 MENU_PAUSED = "⏸ Бот приостановлен. Новые объявления присылать не буду, пока не возобновишь."
 MENU_RESUMED = "▶️ Бот снова активен."
 
-MENU_NO_SUBSCRIPTIONS = "У тебя пока нет ни одной подписки. Напиши /start, чтобы добавить."
+MENU_NO_SUBSCRIPTIONS = "У тебя пока нет ни одной подписки. Добавь ссылку через меню."
 
 MENU_CHOOSE_SUBSCRIPTION_TO_EDIT = "Какую ссылку отредактировать?"
 
-MENU_ASK_NEW_LINK = "Теперь нужно прислать новую ссылку взамен текущей."
+MENU_ASK_NEW_LINK = "Пришли новую ссылку-фильтр взамен текущей."
 
 MENU_EDIT_LINK_CANCELLED = "Отменено, ссылка не изменена."
 
-MENU_LINK_UPDATED_TEXT = "✅ Ссылка обновлена! Вот как теперь будут выглядеть уведомления, только с фото:"
+MENU_LINK_UPDATED_TEXT = "✅ Ссылка обновлена! Вот как будут выглядеть уведомления:"
 
 MENU_ASK_NOTE_TEXT = (
     "Напиши текст заметки — она будет сохранена и отправлена разработчику. "
@@ -131,7 +125,6 @@ MENU_WORK_HOURS_INVALID = (
     "Попробуй ещё раз, если не получается — опиши проблему через фидбек из главного меню."
 )
 
-
 def format_work_hours_saved(start_tbilisi: str, end_tbilisi: str) -> str:
     return (
         f"✅ Рабочее окно сохранено: {start_tbilisi}–{end_tbilisi} по Тбилиси.\n"
@@ -141,29 +134,50 @@ def format_work_hours_saved(start_tbilisi: str, end_tbilisi: str) -> str:
 
 # --- "Убрать из выдачи" ---
 
-GROUP_EXCLUDED_TEXT = "🚫 Скрыто. Больше не буду присылать объявления из этой группы дублей (срабатывает не всегда)."
+GROUP_EXCLUDED_TEXT = "🚫 Скрыто. Больше не буду присылать объявления из этой группы дублей."
 
 GROUP_EXCLUDE_ERROR_TEXT = "Не получилось скрыть — попробуй ещё раз или напиши разработчику через меню."
+
+LISTING_DELETED_TEXT = "🗑 Удалено."
+
+LISTING_DELETE_ERROR_TEXT = "Не получилось удалить — попробуй ещё раз."
+
+# --- "Вернуть последние N объявлений" ---
+
+MENU_LAST_N_CHOOSE_SUBSCRIPTION = "По какому фильтру показать последние объявления?"
+
+MENU_LAST_N_ASK_HOURS = "За какой период показать объявления?"
+
+MENU_LAST_N_FETCH_ERROR = (
+    "Не получилось загрузить объявления по этому фильтру — сайт не ответил "
+    "или временно недоступен. Попробуй ещё раз через меню."
+)
+
+
+def format_last_n_done(count_shown: int, hours: int) -> str:
+    if count_shown == 0:
+        return f"За последние {hours} ч. по этому фильтру новых объявлений не было."
+    return f"Готово — показал {count_shown} объявлений за последние {hours} ч."
 
 
 # --- Избранное ---
 
 FAVORITE_ADDED_ANSWER = "⭐ Добавлено в избранное"
 FAVORITE_ALREADY_ADDED_ANSWER = "Уже в избранном"
-FAVORITE_ADD_ERROR_ANSWER = "Не получилось добавить — попробуй ещё раз или напиши разработчику через меню."
+FAVORITE_ADD_ERROR_ANSWER = "Не получилось добавить — попробуй ещё раз."
 
-FAVORITES_EMPTY_TEXT = "Пока пусто. Добавить объявления можно кнопкой «⭐ В избранное» под ними."
-FAVORITES_LIST_HEADER = "Твои избранные объявления:"
+FAVORITES_EMPTY_TEXT = "Пока пусто. Добавляй объявления кнопкой «⭐ В избранное» под ними."
+FAVORITES_LIST_HEADER = "Избранные объявления:"
 
 FAVORITE_REMOVED_TEXT = "Удалено из избранного."
 
 
 def format_favorite_entry(
-    street_raw: str | None,
-    price_usd: float | None,
-    price_gel: float | None,
-    area_sqm: float | None,
-    url: str,
+        street_raw: str | None,
+        price_usd: float | None,
+        price_gel: float | None,
+        area_sqm: float | None,
+        url: str,
 ) -> str:
     """Одна строка избранного: 'ул. А.Размадзе, $650, 47 м²', целиком —
     кликабельная ссылка на объявление (см. запрос пользователя — клик на
@@ -183,11 +197,11 @@ def format_favorite_entry(
 
 
 def format_listing_message(
-    listing: Listing,
-    is_test: bool = False,
-    is_duplicate: bool = False,
-    duplicate_of_url: str | None = None,
-    fallback_map_url: str | None = None,
+        listing: Listing,
+        is_test: bool = False,
+        is_duplicate: bool = False,
+        duplicate_of_url: str | None = None,
+        fallback_map_url: str | None = None,
 ) -> str:
     """
     HTML-разметка (parse_mode="HTML" на стороне handler). Единый формат для
@@ -203,7 +217,7 @@ def format_listing_message(
     lines: list[str] = []
 
     if is_test:
-        lines.append("<b>Это тестовое объявление</b>, далее они будут приходить с дополнительными артефактами.\n")
+        lines.append("🧪 <b>Это тестовое объявление</b> — так будут выглядеть уведомления.\n")
 
     if is_duplicate and duplicate_of_url:
         lines.append(f'⚠️ Похоже на уже показанное: <a href="{_encode_url(duplicate_of_url)}">ссылка</a>\n')

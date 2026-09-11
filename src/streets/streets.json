@@ -137,8 +137,8 @@
   },
   {
     "streetId": 19,
-    "latitude": null,
-    "longitude": null,
+    "latitude": 41.710640,
+    "longitude": 44.760320,
     "streetTitleRus": "пр. И.Чавчавадзе",
     "streetTitleEng": "i. chavchavadze avenue",
     "streetTitleGeo": "ი.ჭავჭავაძის გამზ."
@@ -5681,8 +5681,8 @@
   },
   {
     "streetId": 725,
-    "latitude": null,
-    "longitude": null,
+    "latitude": 41.711859,
+    "longitude": 44.797303,
     "streetTitleRus": "ул. З.Чавчавадзе",
     "streetTitleEng": "z. chavchavadze st.",
     "streetTitleGeo": "ზ.ჭავჭავაძის ქ."
@@ -11088,14 +11088,6 @@
     "streetTitleGeo": "ფანასკერტელ-ციციშვილის ქ."
   },
   {
-    "streetId": 1411,
-    "latitude": null,
-    "longitude": null,
-    "streetTitleRus": "Ул. Кутателадзе",
-    "streetTitleEng": "K. Kutateladze st.",
-    "streetTitleGeo": "კ. ქუთათელაძის ქ."
-  },
-  {
     "streetId": 1412,
     "latitude": 41.74721,
     "longitude": 44.77841,
@@ -11494,14 +11486,6 @@
     "streetTitleRus": "Цкнетская трасса I переулок",
     "streetTitleEng": "Tskneti Hwy I Line",
     "streetTitleGeo": "წყნეთის გზატკეცილის I გასასვლელი"
-  },
-  {
-    "streetId": 1462,
-    "latitude": 41.776054,
-    "longitude": 44.733284,
-    "streetTitleRus": "ул.Казбеги",
-    "streetTitleEng": "Kazbegi st.",
-    "streetTitleGeo": "ყაზბეგის ქ."
   },
   {
     "streetId": 1463,
@@ -14102,14 +14086,6 @@
     "streetTitleRus": "Гаяне Хачатуриани ул.",
     "streetTitleEng": "Gayane Khachaturiani St.",
     "streetTitleGeo": "გაიანე ხაჩატურიანის ქ."
-  },
-  {
-    "streetId": 2848,
-    "latitude": null,
-    "longitude": null,
-    "streetTitleRus": "Илия Чавчавадзе I переулок",
-    "streetTitleEng": "Ilia Chavchavadze I lane",
-    "streetTitleGeo": "ილია ჭავჭავაძის I შესახვევი"
   },
   {
     "streetId": 2849,

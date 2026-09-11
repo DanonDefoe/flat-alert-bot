@@ -15,8 +15,10 @@ from aiogram import Router, F, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+from datetime import datetime, timezone, timedelta
 
 from db import db
+from dedup import dedup
 from bot.handlers import link_common
 from utils import time_utils
 from bot.handlers import menu_view
@@ -25,9 +27,11 @@ from bot import message_tracker
 from bot import messages
 from config import settings
 from fetcher import FetchError
-from bot.states import EditLinkStates, AddNoteStates, WorkHoursStates, OnboardingStates
+from . import listing as listing_module
+from bot.states import EditLinkStates, AddNoteStates, WorkHoursStates, OnboardingStates, LastNStates
 from parsers.base import make_session
 from utils import map_utils
+
 
 logger = logging.getLogger(__name__)
 
@@ -373,4 +377,121 @@ async def delete_favorite(callback: CallbackQuery, db_conn) -> None:
 
     db.remove_favorite(db_conn, favorite_id)
     await callback.message.edit_text(messages.FAVORITE_REMOVED_TEXT, reply_markup=None)
+    await callback.answer()
+
+
+# ---------------------------------------------------------------------------
+# "Вернуть последние N объявлений" — вне обычного цикла планировщика, по
+# явному запросу пользователя. В отличие от process_new_listings() (которая
+# фильтрует уже виденные), здесь нужны ВСЕ объявления за период независимо
+# от истории — поэтому используются низкоуровневые dedup.find_duplicate() и
+# dedup.record_seen() напрямую, а не process_new_listings().
+#
+# Период выбирается кнопками (1/3/6/12/24 часа), а не свободным вводом числа —
+# см. keyboards.LASTN_HOUR_CHOICES. Фильтрация идёт по listing.posted_at
+# (см. parsers_poc.py): для ss.ge это поле orderDate источника (та же
+# величина, по которой сайт сам показывает "X часов назад" — не совпадает с
+# датой ПЕРВОЙ публикации, если объявление поднимали повторно), для myhome.ge —
+# last_updated (у сайта нет отдельного поля даты создания, это лучший
+# доступный прокси, но тоже сдвигается при любом редактировании объявления).
+#
+# Явного ограничения на число объявлений в выдаче НЕТ — если фильтр широкий,
+# а период (например 24 часа) большой, объявлений может набраться много и
+# прийти одной пачкой сообщений. Если это будет мешать на практике — можно
+# добавить верхний предел отдельно.
+# ---------------------------------------------------------------------------
+
+
+@router.callback_query(F.data == "menu:last_n")
+async def last_n_start(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+    subscriptions = db.get_subscriptions_for_user(db_conn, callback.from_user.id)
+
+    if not subscriptions:
+        sent = await callback.message.answer(messages.MENU_NO_SUBSCRIPTIONS)
+        message_tracker.track(db_conn, sent)
+        await callback.answer()
+        return
+
+    if len(subscriptions) == 1:
+        await state.update_data(lastn_subscription_id=subscriptions[0]["id"])
+        await state.set_state(LastNStates.awaiting_hours)
+        sent = await callback.message.answer(
+            messages.MENU_LAST_N_ASK_HOURS, reply_markup=keyboards.lastn_hours_keyboard(),
+        )
+        message_tracker.track(db_conn, sent)
+        await callback.answer()
+        return
+
+    rows = [(s["id"], s["site"], s["filter_url"]) for s in subscriptions]
+    sent = await callback.message.answer(
+        messages.MENU_LAST_N_CHOOSE_SUBSCRIPTION,
+        reply_markup=keyboards.choose_subscription_for_lastn_keyboard(rows),
+    )
+    message_tracker.track(db_conn, sent)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("lastn:sub:"))
+async def last_n_subscription_chosen(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+    subscription_id = int(callback.data.split(":")[2])
+    await state.update_data(lastn_subscription_id=subscription_id)
+    await state.set_state(LastNStates.awaiting_hours)
+    sent = await callback.message.answer(
+        messages.MENU_LAST_N_ASK_HOURS, reply_markup=keyboards.lastn_hours_keyboard(),
+    )
+    message_tracker.track(db_conn, sent)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "lastn:cancel")
+async def last_n_cancel(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
+    await state.clear()
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
+    await callback.answer()
+
+
+@router.callback_query(LastNStates.awaiting_hours, F.data.startswith("lastn:hours:"))
+async def last_n_process_hours(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
+    hours = int(callback.data.split(":")[2])
+    data = await state.get_data()
+    subscription_id = data["lastn_subscription_id"]
+    subscription = db.get_subscription(db_conn, subscription_id)
+
+    try:
+        _, listings = await link_common.validate_link(_session, subscription["filter_url"])
+    except (FetchError, ValueError, link_common.NoListingsFoundError) as e:
+        logger.warning("Не удалось получить объявления для 'последние N часов' (подписка %s): %s", subscription_id, e)
+        sent = await callback.message.answer(messages.MENU_LAST_N_FETCH_ERROR)
+        message_tracker.track(db_conn, sent)
+        await state.clear()
+        await menu_view.show_menu(bot, db_conn, callback.from_user.id)
+        await callback.answer()
+        return
+
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    # posted_at может отсутствовать (парсинг даты не удался) — такие объявления
+    # НЕ включаем: не можем доказать, что они попадают в период, лучше пропустить,
+    # чем ошибочно показать что-то за пределами запрошенного окна.
+    selected = [l for l in listings if l.posted_at is not None and l.posted_at >= cutoff]
+
+    results = []
+    for one_listing in selected:
+        duplicate_of = dedup.find_duplicate(db_conn, subscription_id, one_listing)
+        dedup.record_seen(db_conn, subscription_id, one_listing)
+        results.append(dedup.DedupResult(
+            listing=one_listing,
+            is_duplicate=duplicate_of is not None,
+            duplicate_of_native_id=duplicate_of,
+        ))
+
+    if results:
+        await listing_module.deliver_new_listings(
+            bot, chat_id=callback.from_user.id, subscription_id=subscription_id,
+            results=results, db_conn=db_conn,
+        )
+
+    await state.clear()
+    sent = await callback.message.answer(messages.format_last_n_done(len(results), hours))
+    message_tracker.track(db_conn, sent)
+    await menu_view.show_menu(bot, db_conn, callback.from_user.id)
     await callback.answer()
