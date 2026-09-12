@@ -403,7 +403,7 @@ async def delete_favorite(callback: CallbackQuery, db_conn) -> None:
 
 
 @router.callback_query(F.data == "menu:last_n")
-async def last_n_start(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+async def last_n_start(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
     subscriptions = db.get_subscriptions_for_user(db_conn, callback.from_user.id)
 
     if not subscriptions:
@@ -415,31 +415,30 @@ async def last_n_start(callback: CallbackQuery, state: FSMContext, db_conn) -> N
     if len(subscriptions) == 1:
         await state.update_data(lastn_subscription_id=subscriptions[0]["id"])
         await state.set_state(LastNStates.awaiting_hours)
-        sent = await callback.message.answer(
-            messages.MENU_LAST_N_ASK_HOURS, reply_markup=keyboards.lastn_hours_keyboard(),
+        await menu_view.show_screen(
+            bot, db_conn, callback.from_user.id,
+            messages.MENU_LAST_N_ASK_HOURS, keyboards.lastn_hours_keyboard(),
         )
-        message_tracker.track(db_conn, sent)
         await callback.answer()
         return
 
     rows = [(s["id"], s["site"], s["filter_url"]) for s in subscriptions]
-    sent = await callback.message.answer(
-        messages.MENU_LAST_N_CHOOSE_SUBSCRIPTION,
-        reply_markup=keyboards.choose_subscription_for_lastn_keyboard(rows),
+    await menu_view.show_screen(
+        bot, db_conn, callback.from_user.id,
+        messages.MENU_LAST_N_CHOOSE_SUBSCRIPTION, keyboards.choose_subscription_for_lastn_keyboard(rows),
     )
-    message_tracker.track(db_conn, sent)
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("lastn:sub:"))
-async def last_n_subscription_chosen(callback: CallbackQuery, state: FSMContext, db_conn) -> None:
+async def last_n_subscription_chosen(callback: CallbackQuery, state: FSMContext, db_conn, bot: Bot) -> None:
     subscription_id = int(callback.data.split(":")[2])
     await state.update_data(lastn_subscription_id=subscription_id)
     await state.set_state(LastNStates.awaiting_hours)
-    sent = await callback.message.answer(
-        messages.MENU_LAST_N_ASK_HOURS, reply_markup=keyboards.lastn_hours_keyboard(),
+    await menu_view.show_screen(
+        bot, db_conn, callback.from_user.id,
+        messages.MENU_LAST_N_ASK_HOURS, keyboards.lastn_hours_keyboard(),
     )
-    message_tracker.track(db_conn, sent)
     await callback.answer()
 
 

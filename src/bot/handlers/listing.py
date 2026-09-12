@@ -186,7 +186,8 @@ async def send_listing(
     if not buttons_attached:
         try:
             sent_actions = await bot.send_message(
-                chat_id=chat_id, text="·", reply_markup=action_keyboard,
+                chat_id=chat_id, text="Не удалось загрузить мини-карту: координаты не пришли с сайта",
+                reply_markup=action_keyboard,
             )
             message_tracker.track(db_conn, sent_actions)
         except TelegramBadRequest as e:
