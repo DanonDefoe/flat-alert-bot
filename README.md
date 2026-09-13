@@ -16,10 +16,13 @@
 - Sends an **interactive map** directly in chat (via Telegram Location)
 - Detects **duplicate listings** (same apartment posted by multiple agencies) and flags them
 - **Favorites** — save an interesting apartment with one button
-- **Delete from chat** — remove an unwanted listing with one button
+- **Delete from chat** — remove an unwanted listing (and everything that came with it — photos, map) with one button
+- **Recent listings on demand** — pull everything posted in the last 1/3/6/12/24 hours for a filter, outside the regular schedule
 - Configurable working hours (when the bot is active) in Tbilisi time
 - Pause and resume without losing subscriptions
 - Auto-deletes messages after 3 days (except favorites)
+- Auto-closes the previous menu/navigation screen when a new one opens — the chat doesn't fill up with stale "Menu:" messages
+- Supports multiple users
 
 ---
 
@@ -92,6 +95,7 @@ Or via PyCharm: Run → Run 'main' (make sure `src/` is marked as Sources Root).
 | ➕ Add site | Add a second filter (ss.ge or myhome.ge) |
 | ✏️ Edit link | Replace the current filter |
 | ⭐ Favorites | List of saved apartments |
+| 🔄 Recent listings | Pull everything posted in the last 1/3/6/12/24 hours for a chosen filter |
 | ⏸ Pause | Temporarily stop the bot |
 | 🕐 Change working hours | Active hours in Tbilisi time |
 | 📝 Developer note | Report an issue |
@@ -102,7 +106,7 @@ Or via PyCharm: Run → Run 'main' (make sure `src/` is marked as Sources Root).
 |---|---|
 | ⭐ Favorites | Save the apartment |
 | ☰ Menu | Open the menu |
-| 🗑 Delete from chat | Remove the listing from chat |
+| 🗑 Delete from chat | Remove the listing (and its photos/map) from chat |
 | 🚫 Hide from feed | Hide a duplicate group (ss.ge only) |
 
 ---
@@ -112,8 +116,9 @@ Or via PyCharm: Run → Run 'main' (make sure `src/` is marked as Sources Root).
 - **Parsing without a browser** — both sites are built on Next.js and embed all listing data inside the HTML page (`__NEXT_DATA__`). A plain `requests.get()` call is enough — no Selenium or Playwright needed.
 - **Scheduler** — checks sites at a randomized interval within the chosen range. It "ticks" once a minute and checks which subscriptions are due for their next check.
 - **Deduplication** — uses the native duplicate signal (`similarityGroup`) for ss.ge; for myhome.ge uses a heuristic based on address + area (±6 m²) + floor.
-- **Map** — for myhome.ge, coordinates come directly from the site; for ss.ge, they are looked up from the street directory by `streetId`. The map is sent via Telegram Location — an interactive widget right in the chat.
-- **Auto-delete** — all bot messages (except favorites) are deleted after 3 days by a cleanup job that runs hourly.
+- **Map** — for myhome.ge, coordinates come directly from the site; for ss.ge, they are looked up from the street directory by `streetId`, with a text-based fallback match if the ID lookup comes up empty. The map is sent via Telegram Location — an interactive widget right in the chat. If no coordinates can be found at all, a Google Maps search link is used instead.
+- **Recent listings** — filters by the listing's own posting timestamp (`orderDate` on ss.ge, `last_updated` on myhome.ge), fetched fresh at request time rather than from the regular schedule's cache.
+- **Auto-delete** — all bot messages (except favorites) are deleted after 3 days by a cleanup job that runs hourly. Navigation screens (menus, multi-step prompts) are deleted immediately once superseded by the next screen.
 
 ---
 
@@ -174,16 +179,18 @@ rental-listings-bot/
 
 ## Что умеет бот
 
-- Следит за двуми сайтами с одновременно (ссылок с фильтраами может боть больше)
+- Следит одновременно за двумя сайтами (ссылок-фильтров может быть больше одной на сайт)
 - Показывает только новые объявления — уже виденные не повторяет
-- Прокидывает интерактивную карту прямо в чат (через Telegram Location)
+- Прикладывает интерактивную карту прямо в чат (через Telegram Location)
 - Определяет похожие объявления (дубли от разных агентств) и помечает их
 - Избранное — сохранить понравившуюся квартиру одной кнопкой
-- Удалить из чата — убрать неинтересное объявление одной кнопкой
-- Настраиваемое рабочее окно активности бота
+- Удалить из чата — убрать неинтересное объявление одной кнопкой, вместе со всем, что к нему прилагалось (фото, карта)
+- Последние объявления по запросу — забрать всё, что опубликовано за последние 1/3/6/12/24 часа по выбранному фильтру, вне обычного расписания
+- Настраиваемое рабочее окно активности бота по тбилисскому времени
 - Пауза и возобновление без потери подписок
 - Автоудаление сообщений через 3 суток (кроме избранного)
-- Поддержка множестваа юзеров
+- Автоматическое закрытие предыдущего окна меню/навигации при открытии нового — чат не засоряется старыми "Меню:"
+- Поддержка нескольких пользователей
 
 ---
 
@@ -212,7 +219,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Открыть `.env` и заполнть:
+Открыть `.env` и заполнить:
 
 ```env
 TELEGRAM_BOT_TOKEN=123456789:AAxxxxxx   # обязательно
@@ -256,6 +263,7 @@ python -m src.main
 | ➕ Добавить сайт | Добавить второй фильтр (ss.ge или myhome.ge) |
 | ✏️ Отредактировать ссылку | Заменить фильтр на новый |
 | ⭐ Избранное | Список сохранённых квартир |
+| 🔄 Последние объявления | Забрать всё, что опубликовано за последние 1/3/6/12/24 часа по выбранному фильтру |
 | ⏸ Приостановить | Временно остановить бота |
 | 🕐 Изменить рабочее окно | Часы активности по Тбилиси |
 | 📝 Заметка разработчику | Сообщить о проблеме |
@@ -266,7 +274,7 @@ python -m src.main
 |---|---|
 | ⭐ В избранное | Сохранить квартиру |
 | ☰ Меню | Открыть меню |
-| 🗑 Удалить из чата | Убрать объявление из чата |
+| 🗑 Удалить из чата | Убрать объявление (вместе с фото/картой) из чата |
 | 🚫 Убрать из выдачи | Скрыть группу дублей (только ss.ge) |
 
 ---
@@ -276,8 +284,9 @@ python -m src.main
 - **Парсинг без браузера** — оба сайта работают на Next.js и отдают все данные объявлений внутри HTML-страницы (`__NEXT_DATA__`). Для их извлечения достаточно обычного `requests.get()`, без Selenium или Playwright.
 - **Планировщик** — проверяет сайты с рандомизированным интервалом внутри выбранного диапазона. Раз в минуту "тикает" и смотрит, у кого из подписок наступило время следующей проверки.
 - **Дедупликация** — для ss.ge использует родной признак дублей (`similarityGroup`), для myhome.ge — эвристику по адресу + площади (±6 м²) + этажу.
-- **Карта** — для myhome.ge координаты приходят прямо с сайта; для ss.ge берутся из справочника улиц по `streetId`. Карта отправляется через Telegram Location — интерактивный виджет прямо в чате.
-- **Автоудаление** — все сообщения бота (кроме избранного) удаляются через 3 суток. Это делает cleanup-задача, которая запускается раз в час.
+- **Карта** — для myhome.ge координаты приходят прямо с сайта; для ss.ge берутся из справочника улиц по `streetId`, с текстовым фоллбэком, если лукап по ID не дал результата. Карта отправляется через Telegram Location — интерактивный виджет прямо в чате. Если координат не нашлось вообще ни одним из способов — вместо карты используется ссылка на поиск в Google Maps.
+- **Последние объявления** — фильтрация идёт по собственной дате публикации объявления (`orderDate` у ss.ge, `last_updated` у myhome.ge), данные забираются заново в момент запроса, а не из кэша обычного расписания.
+- **Автоудаление** — все сообщения бота (кроме избранного) удаляются через 3 суток. Это делает cleanup-задача, которая запускается раз в час. Экраны навигации (меню, промежуточные шаги сценариев) удаляются сразу же, как только на смену им приходит следующий экран.
 
 ---
 
@@ -320,12 +329,7 @@ rental-listings-bot/
 
 ## Бэклог
 
-- всё ещё нет кнопки "Удалить из чата" под объявлениями
-- Добавить автоудаление последнего окна меню бота, как реализовано в stock-alert-bot: юзерн нажимает кнопку меню, и это сообщение стирается, чтобы не засорять чат
-- Добавит кнопку в меню "Вернуть последние X объявлений" — по нажатию бот пишет "Сколько объявлений показать (до 10)?" — далее юзер вводит число и бот берет последние X объявлений с сайта и пуляет в чат.
 - Показать более дешёвые дубли объявления (API ss.ge требует авторизации, пока недоступно)
 - Подсветка линии улицы на карте вместо точки
 - Показ номера телефона арендодателя
 - Кросс-сайтовая дедупликация (ss.ge ↔ myhome.ge)
-
----
